@@ -1,0 +1,249 @@
+<html>
+<head>
+	<title>TodoApp</title>
+</head>
+
+<style type="text/css">
+
+.Add, .Logout {
+	background-color: lightgreen;
+	border-spacing: 5px;
+	width: 70px;
+	height: 50px;
+	text-align: center;
+}
+
+#input {
+	width: 400px;
+	height: 40px;
+	font-size: 20px;
+}
+
+#delete {
+	background-color: red;
+	width :60px;
+	height:20px;
+	text-align: center;
+}
+
+#edit {
+	background-color: blue;
+	width :60px;
+	height:20px;
+	text-align: center;
+}
+
+#complete {	
+	background-color: green;
+	width :125px;
+	height:20px;
+	text-align: center;
+}
+
+#pending {	
+	background-color: purple;
+	width :125px;
+	height:20px;
+	text-align: center;
+ }
+
+td.completed {
+	text-decoration: line-through;
+	color : green;
+}
+
+td.pending {
+	color : red;
+}
+
+table, th, td {
+   border: 1px solid black;
+}
+
+</style>
+
+<body>
+	<h1>Welcome , Add TodoTask</h1>
+	<input type = "textbox" id = 'input'> 
+	<button type = "submit" id = 'add' class = 'Add'> Add </button>
+	<button type = "submit" id = 'logout' class = 'Logout'> Logout </button>
+
+	<div id = "list"> </div>
+
+	<table style="width:40%">
+		<tr> 
+			<th> task name </th>
+			<th> Actions </th>
+		</tr>
+	</table>
+
+
+	<script>
+
+		//alert(sessionStorage.user);
+		var currentuser = sessionStorage.user;
+
+		if (currentuser === undefined) {
+			alert("Come through a valid path");
+			window.location.assign("TodoApp_login.html");
+		} else {
+
+			var button = document.querySelector('.Add');
+			var logout = document.querySelector('.Logout');
+
+			button.addEventListener('click',add);
+			logout.addEventListener('click',logoutsession);
+
+			var db = openDatabase("TodoList","1.0","testing",2*1024*1024);
+			db.transaction (function (tx) {
+				tx.executeSql('create table if not exists TodoTask(Id integer primary key autoincrement, Task text, Status text, User text)');
+
+				db.transaction (function (tx) {
+					tx.executeSql('select Task,Status from TodoTask where User = (?)',[sessionStorage.user],function (tx,results) {
+						var len = results.rows.length;
+						for (i = 0; i < len; i++) {
+							//alert(results.rows.item(i).Task);
+							addtotable(results.rows.item(i).Task,results.rows.item(i).Status);
+						}
+						alert("Welcome " + currentuser);
+					},null);
+				});
+			});
+
+		}
+
+		//alert("Welcome " + currentuser);
+
+		function add() {
+			var txtbox = document.querySelector('input');
+			var val = txtbox.value;
+			txtbox.value = "";
+
+			db.transaction (function (tx) {
+				tx.executeSql('insert into TodoTask(Task,User,Status) values (?,?,?)',[val,sessionStorage.user,"pending"]);
+			});
+
+
+			addtotable(val,"pending");
+
+		}
+
+		function addtotable(val,status) {
+
+
+			var table = document.querySelector('table');
+		//	div.innerHTML - "";
+			var row = document.createElement('tr');
+			table.appendChild(row);
+
+			var td = document.createElement('td');
+			td.setAttribute('class', status);
+			row.appendChild(td);
+
+			var node = document.createTextNode(val);
+			td.appendChild(node);
+
+
+			var action = document.createElement('tr');
+			row.appendChild(action);
+
+			var deletebtn = document.createElement('td');
+			var editbtn = document.createElement('td');
+			var completebtn = document.createElement('td');
+			var button = document.createElement('button');
+			var button2 = document.createElement('button');
+			var button3 = document.createElement('button');
+
+			button.id = "delete";
+			button.innerHTML = "delete";
+
+			button2.id = "edit";
+			button2.innerHTML = "edit";
+
+			action.appendChild(completebtn.appendChild(button3));
+			action.appendChild(editbtn.appendChild(button2));
+			action.appendChild(deletebtn.appendChild(button));
+
+			button.addEventListener('click',function() { deletetask(row);});
+			button2.addEventListener('click', function() { edittask(td)});
+
+
+			if (status === "pending") {
+				button3.id = "complete";
+				button3.innerHTML = "Mark Complete";
+				button3.onclick = function() { markcomplete(td,button3)};
+			} else {
+				button3.id = "pending";
+				button3.innerHTML = "Mark Pending";
+				button3.onclick = function() { markpending(td,button3)};
+
+			}
+			//alert("hi");
+
+		}
+
+		function deletetask(row) {
+
+			var val = row.cells[0].innerHTML;
+
+			db.transaction (function (tx) {
+				tx.executeSql('delete from TodoTask where Task = (?) and User = (?)',[val,sessionStorage.user]);
+			});
+
+			row.parentNode.removeChild(row);
+
+		}
+
+		function edittask(cell) {
+			var task = prompt("enter modified task");
+			var previous = cell.innerHTML;
+
+			db.transaction (function (tx) {
+				tx.executeSql('update TodoTask set Task = (?) where Task = (?) and User = (?)',[task,previous,sessionStorage.user]);
+			});
+
+
+			while (cell.firstChild) {
+				cell.removeChild(cell.firstChild)
+			}
+			//cell.removeChild(cell.childNodes(0));
+			//cell.innerHTML = "";
+			cell.appendChild(document.createTextNode(task));
+		}
+
+
+		function markpending(cell,button) {
+			cell.setAttribute("class","pending");
+			db.transaction (function (tx) {
+				tx.executeSql('update TodoTask set Status = (?) where Task = (?) and User = (?)',["pending",cell.innerHTML,sessionStorage.user]);
+			});
+			button.id = "complete";
+			button.innerHTML = "Mark Complete";
+			button.onclick = function() { markcomplete(cell,button)};
+
+		}
+
+		function markcomplete(cell,button) {
+			//console.log("something here");
+			cell.setAttribute("class","completed");
+			db.transaction (function (tx) {
+				tx.executeSql('update TodoTask set Status = (?) where Task = (?) and User = (?)',["completed",cell.innerHTML,sessionStorage.user]);
+			});
+			button.id = "pending";
+			button.innerHTML = "Mark Pending";
+			button.onclick = function() { markpending(cell,button)};
+
+
+		}
+
+		function logoutsession() {
+			sessionStorage.clear();
+			window.location.assign("TodoApp_login.html");
+		}
+
+
+
+	</script>
+
+</body>
+</html>

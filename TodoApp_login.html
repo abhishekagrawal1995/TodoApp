@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<style>
+
+html {
+	background-image: url("login.jpg");
+}
+
+form {
+    border: 3px solid #f1f1f1;
+}
+
+input[type=text], input[type=password] {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: 8px;
+    cursor: pointer;
+    width: 20%;
+}
+
+button:hover {
+    opacity: 0.8;
+}
+
+.container {
+    padding: 16px;
+}
+
+</style>
+<body>
+
+<h2 style = "color:red">Login Form</h2>
+
+<form method = "POST">
+  <div class="container">
+    <label style = "color:green"><b>Username</b></label>
+    <input type="text" placeholder="Enter Username" name="uname" required>
+
+    <label style = "color:green"><b>Password</b></label>
+    <input type="password" placeholder="Enter Password" name="psw" required>
+        
+    <button type="submit" class = "login">Login</button>
+    <button type= "submit" class = "register">Register </button>
+  </div>
+</form>
+
+
+<script type="text/javascript">
+
+	var currentuser = sessionStorage.user;
+	//alert(currentuser);
+	if (currentuser != undefined) {
+		window.location.assign("TodoApp_js.html");
+	}
+		
+	var db = openDatabase("TodoList","1.0","testing",2*1024*1024);
+	db.transaction(function (tx) {
+		tx.executeSql('create table if not exists logindetails(Username Text primary key, Password Text)');
+	});
+
+	var login = document.querySelector(".login");
+	login.addEventListener('click', dologin);
+
+	var register = document.querySelector(".register");
+	register.addEventListener('click', doregister);
+
+
+	function dologin() {
+		var username = document.getElementsByName("uname")[0].value;
+		var password = document.getElementsByName("psw")[0].value;
+
+		db.transaction(function(tx) {
+			tx.executeSql('Select Password from logindetails where Username = (?)',[username],function(tx,results) {
+				var len = results.rows.length;
+				//alert(len);
+				if (len > 0) {
+					var pass = results.rows.item(0).Password;
+					if (pass === password) {
+						//alert("Logging you in");
+						sessionStorage.setItem("user",username);
+						window.location.assign("TodoApp_js.html");
+					} else {
+						alert("Invalid Username/Password");
+					}
+
+				} else {
+					alert("Invalid Username");
+				}
+			})
+		})
+
+	}
+
+
+
+	function doregister() {
+		var username = prompt("Enter Username");	
+
+		while (username === "") {
+			username = prompt("Enter Username");
+		}
+
+		if (!username)
+			return;
+
+		db.transaction(function (tx) {
+			tx.executeSql('select * from logindetails where Username = (?)',[username],function (tx,results) {
+				var len = results.rows.length;
+				if (len > 0) {
+					alert("User already registered");
+				} else {
+					goforward(username);
+				}
+			},null);
+		});
+
+	}
+
+	function goforward(username) {
+
+		var password = prompt("Enter Password");
+		while (password === "") {
+			password = prompt("Enter Password");
+		}
+
+		if (username && password) {
+			db.transaction(function (tx) {
+				tx.executeSql('insert into logindetails values(?,?)',[username,password]);
+				alert("SuccessFully Registered");
+			});
+		}
+
+	}
+
+
+	
+</script>
+
+
+</body>
+</html>
+
